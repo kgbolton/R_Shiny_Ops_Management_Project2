@@ -18,14 +18,39 @@ colnames(crimes2018)[1] <- "COUNTYNAME"
 crimes2018$COUNTYNAME <- toupper(crimes2018$COUNTYNAME)
 
 # Define UI for application
-ui <- navbarPage("NYC Green Infrastructure",
-                     theme = shinytheme("superhero")
+ui <- fluidPage(
+    theme = shinytheme("cyborg"),
+    titlePanel("Florida Crime, and Mobile Homes"),
+    flowLayout(
+        sliderInput("popSize",
+                    "Population of County",
+                    min(crimes2018$Population),
+                    max(crimes2018$Population),
+                    value=c(min(crimes2018$Population),max(crimes2018$Population))),
+        checkboxGroupInput("crimeType",
+                           "Type of crimes",
+                           choices = c("Violent", "Property")),
+        wellPanel("How many ways can you interpret a trend... Or lack thereof?")
+    ),
+    tabsetPanel(
+        tabPanel("Map",
+                 checkboxInput("showParks",
+                               "Show mobile home parks",
+                               value = F),
+                 leafletOutput("FL")),
+        tabPanel("Plots"),
+        tabPanel("Data")
+    )
 
 )
 
 # Define server function
 server <- function(input, output) {
-
+    # Basic Map
+    output$FL <- renderLeaflet({
+        leaflet() %>%
+            addProviderTiles(providers$OpenStreetMap.BlackAndWhite)
+    })
 
 }
 

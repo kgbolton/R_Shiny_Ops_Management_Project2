@@ -4,6 +4,8 @@ library(leaflet)
 library(leaflet.extras)
 library(rgdal)
 library(rgeos)
+library(tigris)
+library(dplyr)
 
 # Data sources:
 # counties - http://geodata.myflorida.com/datasets/4abd0a3669204df2bc3a57066d217959_4
@@ -36,7 +38,7 @@ ui <- fluidPage(
         tabPanel("Map",
                  checkboxInput("showParks",
                                "Show mobile home parks",
-                               value = F),
+                               value = T),
                  leafletOutput("FL")),
         tabPanel("Plots"),
         tabPanel("Data")
@@ -49,7 +51,36 @@ server <- function(input, output) {
     # Basic Map
     output$FL <- renderLeaflet({
         leaflet() %>%
-            addProviderTiles(providers$OpenStreetMap.BlackAndWhite)
+            addProviderTiles(providers$OpenStreetMap.BlackAndWhite) %>%
+            setView(-81.5158, 27.6648, 6)
+    })
+    # Join and filter data
+    allInputs <- reactive({
+        # get park counts
+        mobiles <- mobileHomes@data %>% group_by(COUNTY) %>% count()
+        colnames(mobiles) <- c("COUNTYNAME", "Number of mobile home parks")
+        mobiles$COUNTYNAME <- as.character(mobiles$COUNTYNAME)
+        specialrow <- which(mobiles$COUNTYNAME == "DADE")
+        mobiles[specialrow,1] <- "MIAMI-DADE"
+        
+        # join to county geospatial data
+        countyParks <- geo_join(counties, mobiles, by = "COUNTYNAME")
+        
+        # join crime data to county geospatial data
+        countyAll <- geo_join(countyParks, crimes2018[,c(1:4, 12:15)], by = "COUNTYNAME")
+        
+        
+    })
+    # mobile home parks
+    observe({
+        parks <- mobileHomes@data
+        
+        leafletProxy("FL", data = parks) %>% 
+            addCircleMarkers(~LONG_DD, ~LAT_DD, radius = 1, group = "MHPs")
+        
+        if(!input$showParks) leafletProxy("FL", data = parks) %>% 
+            clearGroup("MHPs")
+
     })
 
 }

@@ -44,7 +44,7 @@ ui <- fluidPage(
                  checkboxInput("showParks",
                                "Show mobile home parks",
                                value = T),
-                 leafletOutput("FL")),
+                 leafletOutput("FL", height = 800)),
         tabPanel("Plots",
                  plotlyOutput("parkTrend"),
                  plotlyOutput("popTrend")),
@@ -115,18 +115,21 @@ server <- function(input, output) {
     # A plot looking at how crime varies with the number of mobile home parks in a county
     output$parkTrend <- renderPlotly({
         countyAll <- allInputs()
-        ggplot(data = countyAll@data, aes(x = countyAll[["Number.of.mobile.home.parks"]], y = countyAll[[input$crimeType]]/countyAll[["Population"]]*100)) + 
+        p <- ggplot(data = countyAll@data, aes(x = countyAll[["Number.of.mobile.home.parks"]], y = countyAll[[input$crimeType]]/countyAll[["Population"]]*100, text = countyAll[["COUNTYNAME"]])) + 
             geom_point() +
             theme_bw() + 
             labs(x = "Number of mobile home parks in the county", y = "Crime rate (per 100 people)", title = "Crime vs. mobile home parks")
+        gg <- ggplotly(p, tooltip = "text")
+        print(gg)
     })
     # A plot looking at how crime varies with the population of a county
     output$popTrend <- renderPlotly({
         countyAll <- allInputs()
-        ggplot(data = countyAll@data, aes(x = countyAll[["Population"]], y = countyAll[[input$crimeType]]/countyAll[["Population"]]*100)) + 
+        z <- ggplot(data = countyAll@data, aes(x = countyAll[["Population"]], y = countyAll[[input$crimeType]]/countyAll[["Population"]]*100, text = countyAll[["COUNTYNAME"]])) + 
             geom_point() +
             theme_bw() + 
             labs(x = "Population of county", y = "Crime rate (per 100 people)", title = "Crime vs. population size")
+        tt <- ggplotly(z, tooltip = "text")
     })
     # Display datatable
     output$table <- DT::renderDataTable(datatable(allInputs()@data[,c(4,11,9,12:17)], rownames = F) %>%

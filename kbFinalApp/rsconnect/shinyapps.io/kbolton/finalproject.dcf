@@ -1,0 +1,12 @@
+name: finalproject
+title: finalproject
+username:
+account: kbolton
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1350511
+bundleId: 2513043
+url: https://kbolton.shinyapps.io/finalproject/
+when: 1571439873.74625
+asMultiple: FALSE
+asStatic: FALSE

@@ -1,11 +1,14 @@
 library(shiny)
 library(shinythemes)
+library(plotly)
+library(ggplot2)
 library(leaflet)
 library(leaflet.extras)
 library(rgdal)
 library(rgeos)
 library(tigris)
 library(dplyr)
+library(DT)
 
 # Data sources:
 # counties - http://geodata.myflorida.com/datasets/4abd0a3669204df2bc3a57066d217959_4
@@ -42,8 +45,12 @@ ui <- fluidPage(
                                "Show mobile home parks",
                                value = T),
                  leafletOutput("FL")),
-        tabPanel("Plots"),
-        tabPanel("Data")
+        tabPanel("Plots",
+                 plotlyOutput("parkTrend"),
+                 plotlyOutput("popTrend")),
+        tabPanel("Data",
+                 downloadButton("downloadData", "Download"),
+                 DT::dataTableOutput("table"))
     )
 
 )
@@ -105,6 +112,36 @@ server <- function(input, output) {
             addLegend("bottomleft", pal = pal, values = ~counties[[input$crimeType]]/Population*100,
                       title = "Crime rate (per 100 people)")
     })
+    # A plot looking at how crime varies with the number of mobile home parks in a county
+    output$parkTrend <- renderPlotly({
+        countyAll <- allInputs()
+        ggplot(data = countyAll@data, aes(x = countyAll[["Number.of.mobile.home.parks"]], y = countyAll[[input$crimeType]]/countyAll[["Population"]]*100)) + 
+            geom_point() +
+            theme_bw() + 
+            labs(x = "Number of mobile home parks in the county", y = "Crime rate (per 100 people)", title = "Crime vs. mobile home parks")
+    })
+    # A plot looking at how crime varies with the population of a county
+    output$popTrend <- renderPlotly({
+        countyAll <- allInputs()
+        ggplot(data = countyAll@data, aes(x = countyAll[["Population"]], y = countyAll[[input$crimeType]]/countyAll[["Population"]]*100)) + 
+            geom_point() +
+            theme_bw() + 
+            labs(x = "Population of county", y = "Crime rate (per 100 people)", title = "Crime vs. population size")
+    })
+    # Display datatable
+    output$table <- DT::renderDataTable(datatable(allInputs()@data[,c(4,11,9,12:17)], rownames = F) %>%
+                                      formatStyle(columns = 1:9,
+                                          backgroundColor = 'gray')
+    )
+    # Download handler
+    output$downloadData <- downloadHandler(
+        filename = function() {
+            paste("data-", Sys.Date(), ".csv", sep="")
+        },
+        content = function(file) {
+            write.csv(allInputs()@data[,c(4,11,9,12:17)], file)
+        }
+    )
 
 }
 

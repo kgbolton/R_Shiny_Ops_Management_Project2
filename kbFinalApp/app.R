@@ -27,11 +27,13 @@ ui <- fluidPage(
         sliderInput("popSize",
                     "Population of County",
                     min(crimes2018$Population),
-                    max(crimes2018$Population),
-                    value=c(min(crimes2018$Population),max(crimes2018$Population))),
-        checkboxGroupInput("crimeType",
-                           "Type of crimes",
-                           choices = c("Violent", "Property")),
+                    max(2779322),
+                    value=c(min(crimes2018$Population),2779322)),
+        radioButtons("crimeType",
+                     "Type of crimes",
+                     choices = c("Violent" = "Violent",
+                                 "Property" = "Property",
+                                 "All" = "X2018.Total.Index")),
         wellPanel("How many ways can you interpret a trend... Or lack thereof?")
     ),
     tabsetPanel(
@@ -65,22 +67,43 @@ server <- function(input, output) {
         
         # join to county geospatial data
         countyParks <- geo_join(counties, mobiles, by = "COUNTYNAME")
-        
+        countyParks@data$Number.of.mobile.home.parks[is.na(countyParks@data$Number.of.mobile.home.parks)] <- 0
         # join crime data to county geospatial data
         countyAll <- geo_join(countyParks, crimes2018[,c(1:4, 12:15)], by = "COUNTYNAME")
         
+        # filter data by population input
+        countyAll <- subset(countyAll, Population>=input$popSize[1] & Population<=input$popSize[2])
         
+        return(countyAll)
     })
     # mobile home parks
     observe({
         parks <- mobileHomes@data
         
         leafletProxy("FL", data = parks) %>% 
-            addCircleMarkers(~LONG_DD, ~LAT_DD, radius = 1, group = "MHPs")
+            addCircleMarkers(~LONG_DD, ~LAT_DD, radius = 2, group = "MHPs")
         
         if(!input$showParks) leafletProxy("FL", data = parks) %>% 
             clearGroup("MHPs")
 
+    })
+    # Color counties by crime rate and exclude based on population inputs
+    observe({
+        counties <- allInputs()
+        # Create color gradient based on selected crime types
+        pal <- colorBin(
+            palette = hcl.colors(5, palette = "viridis", rev = T), 
+            domain = counties[[input$crimeType]]/counties[["Population"]]*100, 
+            bins = 5,
+            pretty = F
+        )
+        # Augment map
+        leafletProxy("FL", data = counties) %>%
+            clearControls() %>%
+            clearGroup("counties") %>%
+            addPolygons(group = "counties", color = ~pal(counties[[input$crimeType]]/Population*100), label = ~COUNTYNAME) %>%
+            addLegend("bottomleft", pal = pal, values = ~counties[[input$crimeType]]/Population*100,
+                      title = "Crime rate (per 100 people)")
     })
 
 }
